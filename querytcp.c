@@ -11,7 +11,7 @@ This program measures DNS server performance of TCP query.
 
 o Running environment:
 	Development environment:
-        Linux
+		Linux
 		FreeBSD
 		MacOS X 10.3.4
 
@@ -22,8 +22,9 @@ o How to make:
 
 o changes
 
-  2010/6/7: Linux compatibility
   2009/8/12: Remove use of res_mkquery
+  2010/6/7: Linux compatibility
+  2012/10/16: fixed a typo, EDNS0 works.
 */
 
 #include <unistd.h>
@@ -161,7 +162,7 @@ struct dnsheader  {
  |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 */
-	
+
 struct queries {
 	struct tcpdns {
 		unsigned short len;
@@ -240,7 +241,7 @@ void register_response(struct queries *q, int timeout, char *note)
 	int rcode;
 	int id;
 
-    id = ntohs(q->send.u.h.id);
+	id = ntohs(q->send.u.h.id);
 	if (note == NULL)
 		note = "";
 	countqueries++;
@@ -273,7 +274,7 @@ void register_response(struct queries *q, int timeout, char *note)
 		}
 	}
 #ifdef DEBUG
-    printf("%ld.%03ld no=%d fd=%d %d %s\n", q->sent.tv_sec, q->sent.tv_usec/1000, q->no, q->fd, timeout, note);
+	printf("%ld.%03ld no=%d fd=%d %d %s\n", q->sent.tv_sec, q->sent.tv_usec/1000, q->no, q->fd, timeout, note);
 	fflush(stdout);
 #endif
 }
@@ -409,8 +410,8 @@ void send_query_error(char *mesg)
 
 void send_query(struct queries *q)
 {
-    u_char *p, *lim;
-    char *qname;
+	u_char *p, *lim;
+	char *qname;
 	int qclass;
 	int qtype;
 	int tmp;
@@ -432,7 +433,7 @@ void send_query(struct queries *q)
 		qtype = ns_t_txt;
 	} else {
 		do {
-            if (fgets((char*)buff, sizeof(char)*512, fp) == NULL) {
+			if (fgets((char*)buff, sizeof(char)*512, fp) == NULL) {
 				if (datafileloop == 1) {
 					finished = 1;
 					fclose(fp);
@@ -443,16 +444,16 @@ void send_query(struct queries *q)
 					datafileloop--;
 				rewind(fp);
 				lineno = 0;
-                if (fgets((char*)buff, sizeof(char)*512, fp) == NULL)
+				if (fgets((char*)buff, sizeof(char)*512, fp) == NULL)
 					err(1, "cannot rewind input file");
 			}
 			lineno++;
 		} while(buff[0] == '#');
-        qname = strtok((char*)buff, sep);
-        p = (u_char*) strtok(NULL, sep);
+		qname = strtok((char*)buff, sep);
+		p = (u_char*) strtok(NULL, sep);
 		if (p != NULL) {
 			while(t->name != NULL) {
-                if (!strcasecmp(t->name, (char*)p))
+				if (!strcasecmp(t->name, (char*)p))
 					break;
 				t++;
 			}
@@ -473,7 +474,7 @@ void send_query(struct queries *q)
 	q->send.u.h.arcount = 0;
 	p = q->send.u.dnsdata + sizeof(q->send.u.h);
 	lim = p + sizeof(q->send.u.dnsdata);
-    if ((tmp = stringtodname((u_char*) qname, p, lim)) < 0)
+	if ((tmp = stringtodname((u_char*) qname, p, lim)) < 0)
 		send_query_error(qname);
 	p += tmp;
 	*(unsigned short *)p = htons(qtype);
@@ -497,7 +498,7 @@ void send_query(struct queries *q)
 		*p++ = 0;
 		*p++ = 0;
 		q->sendlen += EDNS0size;
-        p = (u_char*) &q->send.u.dnsdata;
+		p = (u_char*) &q->send.u.dnsdata;
 		q->send.u.h.ancount = htons(1);
 	}
 	q->send.len = htons(q->sendlen);
@@ -508,7 +509,7 @@ void send_query(struct queries *q)
 	if (verbose > 0) {
 		int id = ntohs(*(unsigned short *)&q->send.u.dnsdata);
 		printf("sending query(%s,%d,%d) id=%d %d bytes to %s\n", qname, qclass, qtype, id, q->sendlen, ServerName);
-        hexdump("sending packet header:", (unsigned char*) &q->send.u.h, 12);
+		hexdump("sending packet header:", (unsigned char*) &q->send.u.h, 12);
 	}
 	if (q->fd > 0)
 		err(1, "q->fd > 0 but ignored\n");
@@ -709,7 +710,7 @@ void query()
 
 void usage()
 {
-	fprintf(stderr, 
+	fprintf(stderr,
 "querytcp [-d datafile] [-s server_addr] [-p port] [-q num_queries] [-t timeout] [l limit] [-4] [-6] [-h]\n"
 "  -d specifies the input data file (default: stdin)\n"
 "  -s sets the server to query (default: 127.0.0.1)\n"
@@ -733,7 +734,7 @@ void usage()
 int main(int argc, char *argv[])
 {
 	int ch, i;
-    printf("dnsheader size: %d\n", sizeof(struct dnsheader));
+	printf("dnsheader size: %d\n", sizeof(struct dnsheader));
 	while ((ch = getopt(argc, argv, "d:s:p:q:t:l:46eDrvh")) != -1) {
 	switch (ch) {
 	case 'q':
