@@ -503,7 +503,8 @@ void send_query(struct queries *q)
 		*p++ = 0;
 		q->sendlen += EDNS0size;
 		p = (u_char*) &q->send.u.dnsdata;
-		q->send.u.h.ancount = htons(1);
+		// q->send.u.h.ancount = htons(1);
+		q->send.u.h.arcount = htons(1); //this is the typo Fujiwara fixed on 2012/10/16 ??
 	}
 	q->send.len = htons(q->sendlen);
 	q->sendlen += sizeof(q->send.len);
