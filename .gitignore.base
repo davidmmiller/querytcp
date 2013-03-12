@@ -1,0 +1,32 @@
+# initial repo copy - then ignore .gitignore
+.gitignore
+
+# Object files
+*.o
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Local files
+*.swp
+*.orig
+Makefile
+my.configure
+
+# created by configure
+config.h
+config.log
+config.status
+
