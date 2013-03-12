@@ -11,17 +11,19 @@ This program measures DNS server performance of TCP query.
 
 o Running environment:
 	Development environment:
+        Linux
 		FreeBSD
 		MacOS X 10.3.4
 
 o How to make:
+    Linux:   gcc -D_LINUX -Wall -O2 -g -lm -o querytcp querytcp.c
     FreeBSD: gcc -Wall -O2 -g -lm -o querytcp querytcp.c
     MacOS X: gcc -Wall -O2 -g -lm -lresolv -o querytcp querytcp.c
 
 o changes
 
+  2010/6/7: Linux compatibility
   2009/8/12: Remove use of res_mkquery
-  2012/10/16: fixed a typo, EDNS0 works.
 */
 
 #include <unistd.h>
@@ -102,10 +104,20 @@ void *Xrealloc(void *p, int size)
 	return p;
 }
 
+/* strlcpy() emulation for Linux. */
+#ifdef _LINUX
+static inline size_t strlcpy(char *destination, const char *source, size_t size)
+{
+    if(strncpy(destination, source, size) == NULL)
+        return 0;
+
+    return size;
+}
+#endif
+
 /*
   NULL ... returns NULL
  */
-
 char *Xstrdup(char *p)
 {
 	char *q;
@@ -115,7 +127,7 @@ char *Xstrdup(char *p)
 		return NULL;
 	len = strlen(p) + 1;
 	q = Xmalloc(len);
-	strncpy(q, p, len);
+	strlcpy(q, p, len);
 	return q;
 }
 
@@ -128,7 +140,7 @@ static struct timeval start, send_finished;;
 static fd_set fdset0r, fdset0w;
 static int nfds;
 static struct sockaddr_storage remote;
-static int remote_len;
+static int remote_len = 0;
 static int finished = 0;
 static timediff_t Timeout = 10*1000000LL;
 unsigned short counter = 0;
@@ -139,9 +151,9 @@ unsigned short counter = 0;
 #define	SENDBUFSIZ	512
 
 struct dnsheader  {
-  unsigned short id;
-  unsigned char flag1, flag2;
-  unsigned short qdcount, ancount, nscount, arcount;
+  unsigned short id; // 2
+  unsigned char flag1, flag2; // 2
+  unsigned short qdcount, ancount, nscount, arcount; // 8
 };
 
 /*
@@ -179,7 +191,7 @@ struct queries *Queries;
 
 /* input */
 char *ServerName = "127.0.0.1";
-char *ServerPort = "domain";
+char *ServerPort = "53";
 int family = PF_UNSPEC;
 char *datafile = NULL;
 int TimeLimit = 20;
@@ -228,7 +240,7 @@ void register_response(struct queries *q, int timeout, char *note)
 	int rcode;
 	int id;
 
-	id = ntohs(&q->send.u.h.id);
+    id = ntohs(q->send.u.h.id);
 	if (note == NULL)
 		note = "";
 	countqueries++;
@@ -256,11 +268,12 @@ void register_response(struct queries *q, int timeout, char *note)
 			printf("recv timeout id=%d %lld usec\n", id, timediff(&current, &q->sent));
 	} else {
 		counterror++;
-		if (verbose)
-			printf("recv error id=%d errno=%d at %s\n", id, ERROROFFSET - timeout, note);
+		if (verbose) {
+			printf("recv error id=%d errno=%d at %s (%s)\n", id, ERROROFFSET - timeout, note, strerror(errno));
+		}
 	}
 #ifdef DEBUG
-	printf("%ld.%03ld no=%d fd=%d %d %s\n", q->sent.tv_sec, q->sent.tv_usec/1000, q->no, q->fd, timeout, note); */
+    printf("%ld.%03ld no=%d fd=%d %d %s\n", q->sent.tv_sec, q->sent.tv_usec/1000, q->no, q->fd, timeout, note);
 	fflush(stdout);
 #endif
 }
@@ -298,6 +311,7 @@ void output()
 
 void tcp_close(struct queries *q)
 {
+
 #ifdef DEBUG
 printf("tcp_close no=%d fd=%d\n", q->no, q->fd);
 #endif
@@ -315,7 +329,7 @@ void tcp_send(struct queries *q)
 {
 	int len;
 
-	len = send(q->fd, &q->send, q->sendlen, 0);
+	len = send(q->fd, &q->send, q->sendlen, MSG_NOSIGNAL);
 #ifdef DEBUG
 printf("tcp_send no=%d fd=%d %d:%d:%d\n", q->no, q->fd, len, q->wpos, q->sendlen);
 #endif
@@ -395,8 +409,8 @@ void send_query_error(char *mesg)
 
 void send_query(struct queries *q)
 {
-	u_char *p, *lim;
-	u_char *qname;
+    u_char *p, *lim;
+    char *qname;
 	int qclass;
 	int qtype;
 	int tmp;
@@ -418,7 +432,7 @@ void send_query(struct queries *q)
 		qtype = ns_t_txt;
 	} else {
 		do {
-			if (fgets(buff, sizeof buff, fp) == NULL) {
+            if (fgets((char*)buff, sizeof(char)*512, fp) == NULL) {
 				if (datafileloop == 1) {
 					finished = 1;
 					fclose(fp);
@@ -429,16 +443,16 @@ void send_query(struct queries *q)
 					datafileloop--;
 				rewind(fp);
 				lineno = 0;
-				if (fgets(buff, sizeof buff, fp) == NULL)
+                if (fgets((char*)buff, sizeof(char)*512, fp) == NULL)
 					err(1, "cannot rewind input file");
 			}
 			lineno++;
 		} while(buff[0] == '#');
-		qname = strtok(buff, sep);
-		p = strtok(NULL, sep);
+        qname = strtok((char*)buff, sep);
+        p = (u_char*) strtok(NULL, sep);
 		if (p != NULL) {
 			while(t->name != NULL) {
-				if (!strcasecmp(t->name, p))
+                if (!strcasecmp(t->name, (char*)p))
 					break;
 				t++;
 			}
@@ -459,7 +473,7 @@ void send_query(struct queries *q)
 	q->send.u.h.arcount = 0;
 	p = q->send.u.dnsdata + sizeof(q->send.u.h);
 	lim = p + sizeof(q->send.u.dnsdata);
-	if ((tmp = stringtodname(qname, p, lim)) < 0)
+    if ((tmp = stringtodname((u_char*) qname, p, lim)) < 0)
 		send_query_error(qname);
 	p += tmp;
 	*(unsigned short *)p = htons(qtype);
@@ -483,8 +497,8 @@ void send_query(struct queries *q)
 		*p++ = 0;
 		*p++ = 0;
 		q->sendlen += EDNS0size;
-		p = &q->send.u.dnsdata;
-		q->send.u.h.arcount = htons(1);
+        p = (u_char*) &q->send.u.dnsdata;
+		q->send.u.h.ancount = htons(1);
 	}
 	q->send.len = htons(q->sendlen);
 	q->sendlen += sizeof(q->send.len);
@@ -494,13 +508,16 @@ void send_query(struct queries *q)
 	if (verbose > 0) {
 		int id = ntohs(*(unsigned short *)&q->send.u.dnsdata);
 		printf("sending query(%s,%d,%d) id=%d %d bytes to %s\n", qname, qclass, qtype, id, q->sendlen, ServerName);
+        hexdump("sending packet header:", (unsigned char*) &q->send.u.h, 12);
 	}
 	if (q->fd > 0)
 		err(1, "q->fd > 0 but ignored\n");
-	if ((q->fd = socket(remote.ss_family, SOCK_STREAM, 0)) < 0
-		|| (tmp = fcntl(q->fd, F_GETFL, 0)) == -1
-	    || fcntl(q->fd, F_SETFL, O_NONBLOCK | tmp) == -1
-	    || (connect(q->fd, (struct sockaddr *)&remote, remote_len) < 0 && errno != EINPROGRESS)) { 
+
+	q->fd = socket(remote.ss_family, SOCK_STREAM, 0);
+	tmp = fcntl(q->fd, F_GETFL, 0);
+	fcntl(q->fd, F_SETFL, O_NONBLOCK | tmp);
+	int conn_ret = connect(q->fd, (struct sockaddr *)&remote, remote_len);
+	if(conn_ret < 0 && errno != EINPROGRESS) {
 		register_response(q, ERROROFFSET - errno, "send_query:socket+fcntl+connect");
 		tcp_close(q);
 		return;
@@ -631,12 +648,24 @@ void query()
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
-	error = getaddrinfo(ServerName, ServerPort, &hints, &res0);
+	printf("resolving: %s:%s\n", ServerName, ServerPort);
+	error = getaddrinfo(ServerName, 0, &hints, &res0);
 	if (error) {
 		errx(1, "%s", gai_strerror(error));
 	}
-	memcpy(&remote, res0->ai_addr, res0->ai_addrlen);
+
+	/* Update server port. */
+	int port = atoi(ServerPort);
+	if (res0->ai_family == AF_INET6) {
+		struct sockaddr_in6 *ipv6 = (struct sockaddr_in6*)res0->ai_addr;
+		ipv6->sin6_port = htons(port);
+	} else {
+		struct sockaddr_in *ipv4 = (struct sockaddr_in*)res0->ai_addr;
+		ipv4->sin_port = htons(port);
+	}
+
 	remote_len = res0->ai_addrlen;
+	memcpy(&remote, res0->ai_addr, res0->ai_addrlen);
 	memset(&countrcode, 0, sizeof(countrcode));
 
 	res_init();
@@ -704,7 +733,7 @@ void usage()
 int main(int argc, char *argv[])
 {
 	int ch, i;
-
+    printf("dnsheader size: %d\n", sizeof(struct dnsheader));
 	while ((ch = getopt(argc, argv, "d:s:p:q:t:l:46eDrvh")) != -1) {
 	switch (ch) {
 	case 'q':
