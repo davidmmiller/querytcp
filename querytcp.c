@@ -49,6 +49,10 @@ o changes
 #include <sys/select.h>
 #endif
 
+/* ISO C99 int types */
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #ifdef __APPLE__
 #include <nameser8_compat.h>
 #endif
@@ -266,7 +270,7 @@ void register_response(struct queries *q, int timeout, char *note)
 	} else if (timeout == TIMEOUTERROR) {
 		counttimeout++;
 		if (verbose)
-			printf("recv timeout id=%d %lld usec\n", id, timediff(&current, &q->sent));
+			printf("recv timeout id=%d %" PRId64 " usec\n", id, timediff(&current, &q->sent));
 	} else {
 		counterror++;
 		if (verbose) {
@@ -287,14 +291,14 @@ void output()
 
 	printf("elapsed time: %.3f\n", et);
 	printf("tcp qps: %.3f\n", (double)countanswers/et);
-	printf("sent: %lld\n", countqueries);
-	printf("answer: %lld  %3.1f%%\n", countanswers,
+	printf("sent: %" PRId64 "\n", countqueries);
+	printf("answer: %" PRId64 "  %3.1f%%\n", countanswers,
 		 (double)((double)countanswers/(double)countqueries*100.0));
-	printf("error: %lld  %3.1f%%\n", counterror,
+	printf("error: %" PRId64 "  %3.1f%%\n", counterror,
 		 (double)((double)counterror/(double)countqueries*100.0));
-	printf("zeroread: %lld  %3.1f%%\n", countzeroread,
+	printf("zeroread: %" PRId64 "  %3.1f%%\n", countzeroread,
 		 (double)((double)countzeroread/(double)countqueries*100.0));
-	printf("timeout: %lld  %3.1f%%\n", counttimeout,
+	printf("timeout: %" PRId64 "  %3.1f%%\n", counttimeout,
 		 (double)((double)counttimeout/(double)countqueries*100.0));
 	response_size_average = (double)response_size_sum/countanswers;
 	response_size_variance = (double)response_size_sum2 / countanswers
@@ -304,7 +308,7 @@ void output()
 		int i;
 		for (i = 0; i < 16; i++) {
 			if (countrcode[i] != 0) {
-				printf("%s %lld %5.1f\n", rcodestr[i], countrcode[i], ((double)countrcode[i])/((double)countanswers)*100.0);
+				printf("%s %" PRId64 " %5.1f\n", rcodestr[i], countrcode[i], ((double)countrcode[i])/((double)countanswers)*100.0);
 			}
 		}
 	}
@@ -734,7 +738,7 @@ void usage()
 int main(int argc, char *argv[])
 {
 	int ch, i;
-	printf("dnsheader size: %d\n", sizeof(struct dnsheader));
+	printf("dnsheader size: %lu\n", sizeof(struct dnsheader));
 	while ((ch = getopt(argc, argv, "d:s:p:q:t:l:46eDrvh")) != -1) {
 	switch (ch) {
 	case 'q':
@@ -757,7 +761,7 @@ int main(int argc, char *argv[])
 		i = atoi(optarg);
 		if (i < 1)
 			err(1, "-t timeout > 0");
-		Timeout = (int64_t)i * 1000000LL;
+		Timeout = (timediff_t)i * 1000000LL;
 		break;
 	case 'l':
 		TimeLimit = atoi(optarg);
