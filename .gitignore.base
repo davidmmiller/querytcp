@@ -22,7 +22,7 @@
 # Local files
 *.swp
 *.orig
-Makefile
+#Makefile
 my.configure
 
 # created by configure
@@ -30,3 +30,5 @@ config.h
 config.log
 config.status
 
+# compiled executable
+querytcp
