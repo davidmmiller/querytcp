@@ -2,8 +2,13 @@
 # if --as-needed is default for GCC, then -lm has to be
 #  at end of compile command :-/
 
-CC=gcc
+# Linux
 CFLAGS=-D_LINUX -Wall -O2 -g
+
+# Not Linux
+#CFLAGS=-Wall -O2 -g
+
+CC=gcc
 LDARGS=-lm
 
 querytcp: querytcp.c
