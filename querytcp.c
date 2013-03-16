@@ -512,7 +512,8 @@ void send_query(struct queries *q)
 	q->rpos = 0;
 	q->sent = current;
 	if (verbose > 0) {
-		int id = ntohs(*(unsigned short *)&q->send.u.dnsdata);
+		//int id = ntohs(*(unsigned short *)&q->send.u.dnsdata);
+		int id = ntohs((unsigned short)*q->send.u.dnsdata);
 		printf("sending query(%s,%d,%d) id=%d %d bytes to %s\n", qname, qclass, qtype, id, q->sendlen, ServerName);
 		hexdump("sending packet header:", (unsigned char*) &q->send.u.h, 12);
 	}
@@ -611,7 +612,8 @@ void tcp_receive(struct queries *q)
 	q->rpos += len;
 	if (q->rpos < 2)
 		return;
-	len2 = ntohs(*(unsigned short *)(q->recvbuf));
+	//len2 = ntohs(*(unsigned short *)(q->recvbuf));
+	len2 = ntohs((unsigned short)*q->recvbuf);
 	if (q->rpos >= len2 + 2) {
 		/* finished */
 		recvp = q->recvbuf + 2;
@@ -629,7 +631,7 @@ void tcp_receive(struct queries *q)
 			tcp_close(q);
 			return;
 		} else {
-printf("no=%d fd=%d unknown recv %d bytes, len=%d\n", q->no, q->fd, q->rpos, ntohs(*(unsigned short *)(q->recvbuf)));
+printf("no=%d fd=%d unknown recv %d bytes, len=%d\n", q->no, q->fd, q->rpos, ntohs((unsigned short)*q->recvbuf));
 			hexdump("", q->recvbuf, len);
 			/*
 			fprintf(stderr, "unknown recv from %s, %d bytes %02x %02x\n", q->nameserverlabel, q->rpos, recvp[0], recvp[1]);
@@ -699,6 +701,10 @@ void query()
 		fdsetr = fdset0r;
 		fdsetw = fdset0w;
 		n = select(nfds, &fdsetr, &fdsetw, NULL, &timeout);
+		if (n==-1) {
+			perror("socket select failed - function query");
+			return;
+		}
 		UpdateCurrentTime;
 		for(i = 0; i < nQueries; i++) {
 			q = &Queries[i];
