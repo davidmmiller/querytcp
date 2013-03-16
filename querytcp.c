@@ -362,6 +362,7 @@ struct typecodes {
 } typecodes[] = {
 	{ "A", ns_t_a },
 	{ "NS", ns_t_ns },
+	{ "CNAME", ns_t_cname },
 	{ "SOA", ns_t_soa },
 	{ "PTR", ns_t_ptr },
 	{ "HINFO", ns_t_hinfo },
